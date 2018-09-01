@@ -180,7 +180,7 @@ function Seg=segment(signal,W,SP,Window)
     Seg=signal(Index).*hw;
     
 function [NoiseFlag, SpeechFlag, NoiseCounter, Dist]=vad(signal,noise,NoiseCounter,NoiseMargin,Hangover)
-    
+
     %[NOISEFLAG, SPEECHFLAG, NOISECOUNTER, DIST]=vad(SIGNAL,NOISE,NOISECOUNTER,NOISEMARGIN,HANGOVER)
     %Spectral Distance Voice Activity Detector
     %SIGNAL is the the current frames magnitude spectrum which is to labeld as

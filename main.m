@@ -10,19 +10,18 @@ Speech_Set = dir(Speech_Path);
 
 SNR = -5;
 
-[s1, fs1] = audioread(strcat(Noise_Set(1).folder, '/', Noise_Set(1).name), 'native');
-s1 = s1';
-s1 = double(s1);
-s1 = srconv(s1, fs1, SR);
+[N, NFS] = audioread(strcat(Noise_Set(1).folder, '/', Noise_Set(1).name));
+N = N';
+N = srconv(N, NFS, SR);
+Seed = randperm(length(Speech_Set));
+for index = 1:100
+    index
+    i = Seed(index);
+    [S, SFS] = audioread(strcat(Speech_Set(1).folder, '/', Speech_Set(i).name));
+    S = S';
+    S = srconv(S, SFS, SR);
 
-for i = 1:100
-    i
-    [s2, fs2] = audioread(strcat(Speech_Set(1).folder, '/', Speech_Set(i).name), 'native');
-    s2 = s2';
-    s2 = double(s2);
-    s2 = srconv(s2, fs2, SR);
-
-    data = add_noise(s2, s1, SR, SR, SNR);
+    data = add_noise(S, N, SR, SR, SNR);
     audiowrite(strcat(Dest_Path, int2str(SNR), '/', Speech_Set(i).name), data, SR);
     
     Param1 = [' ', '+16000'];
@@ -31,8 +30,8 @@ for i = 1:100
     Cmd = [PESQ, Param1, Param2, Param3];
     [status, cmdout] = dos(Cmd);
     MOS = str2double(cmdout);
-    result(i).name = Speech_Set(i).name;
-    result(i).MOSOrigin = MOS;
+    result(index).name = Speech_Set(i).name;
+    result(index).MOSOrigin = MOS;
     
     % Kalman Filter=
     Output = KalmanFilterSpeechEnhancement(strcat(Dest_Path, int2str(SNR), '/', Speech_Set(i).name));
@@ -42,29 +41,27 @@ for i = 1:100
     Cmd = [PESQ, Param1, Param2, Param3];
     [status, cmdout] = dos(Cmd);
     MOS = str2double(cmdout);
-    result(i).MOSKalman = MOS;
+    result(index).MOSKalman = MOS;
     
     % MMSE
-    [data, SR]  = audioread(strcat(Dest_Path, int2str(SNR), '/', Speech_Set(i).name));
     Output = MMSESTSA84(data(:,1), SR, 0.1);
     Output = Output / max(abs(Output));
-    audiowrite(strcat(Dest_Path, int2str(SNR), '/', Speech_Set(i).name(1:end-4), '_84.wav'), Output, SR);
-    Param3 = [' ', strcat(Dest_Path, int2str(SNR), '/', Speech_Set(i).name(1:end-4), '_84.wav')];
+    audiowrite(strcat(Dest_Path, int2str(SNR), '/', Speech_Set(i).name(1:end-4), '_MMSE84.wav'), Output, SR);
+    Param3 = [' ', strcat(Dest_Path, int2str(SNR), '/', Speech_Set(i).name(1:end-4), '_MMSE84.wav')];
     Cmd = [PESQ, Param1, Param2, Param3];
     [status, cmdout] = dos(Cmd);
     MOS = str2double(cmdout);
-    result(i).MOS84 = MOS;
+    result(index).MOSMMSE84 = MOS;
     
     Output = MMSESTSA85(data(:,1), SR, 0.1);
     Output = Output / max(abs(Output));
-    audiowrite(strcat(Dest_Path, int2str(SNR), '/', Speech_Set(i).name(1:end-4), '_85.wav'), Output, SR);
-    Param3 = [' ', strcat(Dest_Path, int2str(SNR), '/', Speech_Set(i).name(1:end-4), '_85.wav')];
+    audiowrite(strcat(Dest_Path, int2str(SNR), '/', Speech_Set(i).name(1:end-4), '_MMSE85.wav'), Output, SR);
+    Param3 = [' ', strcat(Dest_Path, int2str(SNR), '/', Speech_Set(i).name(1:end-4), '_MMSE85.wav')];
     Cmd = [PESQ, Param1, Param2, Param3];
     [status, cmdout] = dos(Cmd);
     MOS = str2double(cmdout);
-    result(i).MOS85 = MOS;
+    result(index).MOSMMSE85 = MOS;
     
-    [data, SR]  = audioread(strcat(Dest_Path, int2str(SNR), '/', Speech_Set(i).name));
     [s1, s2, s3] = denoisewithwavelet(data(:,1)');
     s1 = s1 / max(abs(s1));
     s2 = s2 / max(abs(s2));
@@ -74,18 +71,45 @@ for i = 1:100
     Cmd = [PESQ, Param1, Param2, Param3];
     [status, cmdout] = dos(Cmd);
     MOS = str2double(cmdout);
-    result(i).MOSS1 = MOS;
+    result(index).MOSS1 = MOS;
     audiowrite(strcat(Dest_Path, int2str(SNR), '/', Speech_Set(i).name(1:end-4), '_S2.wav'), s2, SR);
     Param3 = [' ', strcat(Dest_Path, int2str(SNR), '/', Speech_Set(i).name(1:end-4), '_S2.wav')];
     Cmd = [PESQ, Param1, Param2, Param3];
     [status, cmdout] = dos(Cmd);
     MOS = str2double(cmdout);
-    result(i).MOSS2 = MOS;
+    result(index).MOSS2 = MOS;
     audiowrite(strcat(Dest_Path, int2str(SNR), '/', Speech_Set(i).name(1:end-4), '_S3.wav'), s3, SR);
     Param3 = [' ', strcat(Dest_Path, int2str(SNR), '/', Speech_Set(i).name(1:end-4), '_S3.wav')];
     Cmd = [PESQ, Param1, Param2, Param3];
     [status, cmdout] = dos(Cmd);
     MOS = str2double(cmdout);
-    result(i).MOSS3 = MOS;
+    result(index).MOSS3 = MOS;
     
+    Step = SR * 0.2;
+    Output = [];
+    w = zeros(32, 1);
+    for j = 1 : length(S) / Step
+        [en, w, yn] = lmsFunc(0.05, 32, N((j - 1)*Step + 1:j*Step), S((j - 1)*Step + 1:j*Step), w);
+        Output=[Output en];
+    end
+    Output = Output / max(abs(Output));
+    audiowrite(strcat(Dest_Path, int2str(SNR), '/', Speech_Set(i).name(1:end-4), '_LSM.wav'), Output, SR);
+    Param3 = [' ', strcat(Dest_Path, int2str(SNR), '/', Speech_Set(i).name(1:end-4), '_LSM.wav')];
+    Cmd = [PESQ, Param1, Param2, Param3];
+    [status, cmdout] = dos(Cmd);
+    MOS = str2double(cmdout);
+    result(index).MOSLSM = MOS;
+    Output = [];
+    w = zeros(32, 1);
+    for j = 1 : length(S) / Step
+        [en, w, yn] = nlmsFunc(0.05, 32, N((j - 1)*Step + 1:j*Step), S((j - 1)*Step + 1:j*Step), 1e-4, w);
+        Output=[Output en];
+    end
+    Output = Output / max(abs(Output));
+    audiowrite(strcat(Dest_Path, int2str(SNR), '/', Speech_Set(i).name(1:end-4), '_NLSM.wav'), Output, SR);
+    Param3 = [' ', strcat(Dest_Path, int2str(SNR), '/', Speech_Set(i).name(1:end-4), '_NLSM.wav')];
+    Cmd = [PESQ, Param1, Param2, Param3];
+    [status, cmdout] = dos(Cmd);
+    MOS = str2double(cmdout);
+    result(index).MOSNLSM = MOS;
 end

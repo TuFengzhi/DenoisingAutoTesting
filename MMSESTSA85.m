@@ -14,7 +14,6 @@ function output=MMSESTSA85(signal,fs,IS)
     % Created: Jan-04
     % Last Modified: 24-01-05
     
-    
     if (nargin<3 | isstruct(IS))
         IS=.25; %Initial Silence or Noise Only part in seconds
     end
