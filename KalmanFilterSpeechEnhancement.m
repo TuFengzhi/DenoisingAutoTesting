@@ -63,6 +63,13 @@ function Output = KalmanFilterSpeechEnhancement(Filename)
     end
     Output = Output';
 
+    ol=length(Output);
+    if ol<length(Input)
+        Output=[Output;zeros(length(Input)-ol,1)];
+    else
+        Output=Output(1:length(Input));
+    end
+
     %% Plotting the results
     % audiowrite('two_out.wav', Output, Fs);
     % figure

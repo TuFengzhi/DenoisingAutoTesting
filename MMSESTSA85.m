@@ -91,6 +91,11 @@ function output=MMSESTSA85(signal,fs,IS)
     % close(h);
     output=OverlapAdd2(X,YPhase,W,SP*W); %Overlap-add Synthesis of speech
     output=filter(1,[1 -pre_emph],output); %Undo the effect of Pre-emphasis
+
+    ol=length(output);
+    if ol<length(signal)
+        output=[output;zeros(length(signal)-ol,1)];
+    end
     
 function ReconstructedSignal=OverlapAdd2(XNEW,yphase,windowLen,ShiftLen);
     
